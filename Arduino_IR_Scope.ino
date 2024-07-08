@@ -45,61 +45,76 @@ void setup() {
 
 void loop() {
   if (IrReceiver.decode()) {
-    displayWaveform(IrReceiver.decodedIRData.rawDataPtr->rawbuf, IrReceiver.decodedIRData.rawDataPtr->rawlen);
-    display.setCursor(4, 0);
+    display.clearDisplay();
+    display.setCursor(0, 0);
     display.print(getProtocolString(IrReceiver.decodedIRData.protocol));
     display.print(" ");
     display.print(IrReceiver.decodedIRData.address, HEX);
     display.print(" ");
     display.print(IrReceiver.decodedIRData.command, HEX);
-    display.print(" ");
-    display.print(IrReceiver.decodedIRData.decodedRawData, HEX);
     display.display();
+
+    displayWaveform(IrReceiver.decodedIRData.rawDataPtr->rawbuf, IrReceiver.decodedIRData.rawlen);
+
+    Serial.print("Protocol: ");
+    Serial.print(getProtocolString(IrReceiver.decodedIRData.protocol));
+    Serial.print(" Address: 0x");
+    Serial.print(IrReceiver.decodedIRData.address, HEX);
+    Serial.print(" Command: 0x");
+    Serial.print(IrReceiver.decodedIRData.command, HEX);
+    Serial.println();
+
     IrReceiver.printIRResultRawFormatted(&Serial, true);
     IrReceiver.printIRResultShort(&Serial);
     IrReceiver.printIRSendUsage(&Serial);
     Serial.println(IrReceiver.decodedIRData.decodedRawData, HEX);
-    IrReceiver.resume(); // Enable receiving of the next value
+    IrReceiver.resume();
   }
   delay(10);
 }
 
-void displayWaveform(unsigned char* rawbuf, int rawlen) {
-  display.clearDisplay();
-  display.drawLine(0, 0, 0, SCREEN_HEIGHT - 1, SSD1306_WHITE); 
-  display.drawLine(SCREEN_WIDTH - 1, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, SSD1306_WHITE);
+void displayWaveform(IRRawbufType* rawbuf, int rawlen) {
+  int yOffset = 5; // offset to avoid the text top
+  display.drawLine(0, yOffset, 0, SCREEN_HEIGHT - 1, SSD1306_WHITE); 
+  display.drawLine(SCREEN_WIDTH - 1, yOffset, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, SSD1306_WHITE);
   display.drawLine(0, SCREEN_HEIGHT - 1, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, SSD1306_WHITE);
 
-  int totalDuration = 0;
+  int x = 0;
+  int rowHeight = (SCREEN_HEIGHT - yOffset) / 4; // split into 4 rows
+  int currentRow = 0;
+  int yTop = yOffset + currentRow * rowHeight + 4;
+  int yBottom = yOffset + currentRow * rowHeight + rowHeight - 4;
+
+  float scaleFactor = 0.41; // adjust for scale
+
   for (int i = 0; i < rawlen; i++) {
-    totalDuration += rawbuf[i];
-  }
+    int length = rawbuf[i] * scaleFactor;
 
-  float scaleFactor = (float)totalDuration / (SCREEN_WIDTH * 4); // scale for pulse duration
-  int rowHeight = (SCREEN_HEIGHT - 8) / 4;  // height of each row
-  int midY = rowHeight / 2; // midpoint
-  int x = 1;
-  int yOffset = 1;
-  unsigned long accumulatedTime = 0;
-
-  for (int i = 0; i < rawlen && yOffset < SCREEN_HEIGHT; i++) {
-    accumulatedTime += rawbuf[i];
-    int newX = (int)(accumulatedTime / scaleFactor) % SCREEN_WIDTH;
-    if (newX >= SCREEN_WIDTH) {
-      newX = SCREEN_WIDTH - 1;
-    }
-    if (newX < x) { // move to next row if at end
-      yOffset += rowHeight;
-      x = 1;
-    }
     if (i % 2 == 0) {
-      // high pulse
-      display.drawLine(x, yOffset + midY, x, yOffset, SSD1306_WHITE);
+      // On
+      display.drawLine(x, yTop, x + length, yTop, SSD1306_WHITE);
+      if (i < rawlen - 1) {
+        display.drawLine(x + length, yTop, x + length, yBottom, SSD1306_WHITE);
+      }
     } else {
-      // low pulse, shorter line
-      display.drawLine(x, yOffset + midY, x, yOffset + rowHeight / 4 + 3, SSD1306_WHITE);
+      // Off
+      display.drawLine(x, yBottom, x + length, yBottom, SSD1306_WHITE);
+      if (i < rawlen - 1) {
+        display.drawLine(x + length, yBottom, x + length, yTop, SSD1306_WHITE);
+      }
     }
-    x = newX + 1;
+
+    x += length;
+    if (x >= SCREEN_WIDTH) {
+      x = 0;
+      currentRow++;
+      if (currentRow >= 4) {
+        break; // stop drawing if we run out of vertical space
+      }
+      yTop = yOffset + currentRow * rowHeight + 4;
+      yBottom = yOffset + currentRow * rowHeight + rowHeight - 6;
+    }
   }
+
   display.display();
 }
