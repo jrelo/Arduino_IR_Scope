@@ -14,5 +14,3 @@ Arduino IR Scope + decoded data using Arduino-IRremote 4.x
 - GND -> GND  
 - VCC -> 5v  
 - OUT -> 11  
-
-![Alt text](https://github.com/jrelo/Arduino_IR_Scope/blob/main/IR_Scope.jpg)
