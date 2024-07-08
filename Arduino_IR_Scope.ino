@@ -55,9 +55,10 @@ void loop() {
     display.print(" ");
     display.print(IrReceiver.decodedIRData.decodedRawData, HEX);
     display.display();
+    IrReceiver.printIRResultRawFormatted(&Serial, true);
     IrReceiver.printIRResultShort(&Serial);
     IrReceiver.printIRSendUsage(&Serial);
-    //Serial.println(IrReceiver.decodedIRData.decodedRawData, HEX);
+    Serial.println(IrReceiver.decodedIRData.decodedRawData, HEX);
     IrReceiver.resume(); // Enable receiving of the next value
   }
   delay(10);
